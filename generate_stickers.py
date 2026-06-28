@@ -1,7 +1,9 @@
-"""サンリオ風・ぷっくりまるまる系ひよこLINEスタンプ生成スクリプト。"""
+"""見本画像に寄せたフラットなひよこLINEスタンプ生成スクリプト。"""
 
 import math
+import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Tuple
 
@@ -38,24 +40,24 @@ STICKER_SCENES = [
     [(185, 155, "smile",     "right")],              # 01 おはよう ☀️
     [(185, 155, "sleepy",    "right")],              # 02 おやすみ 🌙
     [(185, 155, "surprised", "right")],              # 03 何してた？
-    [(130, 155, "heart",     "right"),               # 04 愛してる 💕（向き合い）
-     (240, 155, "heart",     "left")],
+    [(115, 160, "heart",     "right"),               # 04 愛してる 💕（向き合い）
+     (255, 160, "heart",     "left")],
     [(185, 155, "smile",     "right")],              # 05 休憩だよ ☕
     [(185, 155, "sleepy",    "right")],              # 06 素敵な夢をみてね 🌟
-    [(130, 155, "smile",     "right"),               # 07 夢で逢えますように 💫（寄り添い）
-     (240, 155, "smile",     "left")],
+    [(115, 160, "smile",     "right"),               # 07 夢で逢えますように 💫（寄り添い）
+     (255, 160, "smile",     "left")],
     [(185, 155, "sparkle",   "right")],              # 08 素敵な一日を 🌈
     [(185, 155, "blush",     "right")],              # 09 無理しないで 🍀
-    [(130, 155, "smile",     "right"),               # 10 会えてうれしかったよ 😊（寄り添い）
-     (240, 155, "smile",     "left")],
-    [(130, 155, "heart",     "right"),               # 11 幸せだよ 💛（ハートあり）
-     (240, 155, "heart",     "left")],
+    [(115, 160, "smile",     "right"),               # 10 会えてうれしかったよ 😊（寄り添い）
+     (255, 160, "smile",     "left")],
+    [(115, 160, "heart",     "right"),               # 11 幸せだよ 💛（ハートあり）
+     (255, 160, "heart",     "left")],
     [(185, 155, "wink",      "right")],              # 12 待っててね ⏳
     [(185, 155, "surprised", "right")],              # 13 終わったよ 🎉
     [(185, 155, "normal",    "right")],              # 14 いま出発 🚀
     [(185, 155, "blush",     "right")],              # 15 お疲れさまでした 🌸
-    [(140, 155, "heart",     "right"),               # 16 ぎゅーして 🤗（くっついている）
-     (230, 155, "heart",     "left")],
+    [(125, 160, "heart",     "right"),               # 16 ぎゅーして 🤗（くっついている）
+     (245, 160, "heart",     "left")],
 ]
 
 # 2羽の間にハートを浮かべるシーンの番号（0-indexed）
@@ -81,23 +83,46 @@ DEFAULT_FONT_TEXT_FALLBACKS = {
 }
 
 _font_warning_shown = False
+FONT_CANDIDATES = [
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
+    "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
+    "/usr/share/fonts/truetype/ipafont-gothic/ipag.ttf",
+    "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+    "C:/Windows/Fonts/msgothic.ttc",
+    "NotoSansJP-Regular.otf",
+    "NotoSansJP-Regular.ttf",
+]
+
+
+def ensure_japanese_font() -> None:
+    """Google Colab環境で日本語フォントを自動インストールする。"""
+    if any(os.path.exists(font_path) for font_path in FONT_CANDIDATES):
+        return
+
+    try:
+        result = subprocess.run(
+            ["apt-get", "install", "-y", "-q", "fonts-noto-cjk"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if result.returncode == 0 and any(os.path.exists(font_path) for font_path in FONT_CANDIDATES):
+            print("日本語フォントをインストールしました。")
+    except Exception:
+        pass
+
+
+ensure_japanese_font()
 
 
 def load_font(size: int, warn_if_default: bool = True) -> tuple[ImageFont.ImageFont, bool]:
     """日本語フォントを優先し、見つからない場合はPillowデフォルトへフォールバックする。"""
-    candidates = [
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
-        "/usr/share/fonts/truetype/ipafont-gothic/ipag.ttf",
-        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
-        "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
-        "C:/Windows/Fonts/msgothic.ttc",
-        "NotoSansJP-Regular.otf",
-        "NotoSansJP-Regular.ttf",
-    ]
-    for font_path in candidates:
+    for font_path in FONT_CANDIDATES:
         try:
             return ImageFont.truetype(font_path, size=size), False
         except (OSError, IOError):
@@ -155,139 +180,121 @@ def draw_chick(
     facing: str = "right",
     size_scale: float = 1.0,
 ) -> None:
-    """サンリオ風・ぷっくりまるまる系ひよこを描く。
+    """見本画像に寄せた丸いひよこを描く。
 
-    頭：体 = 1：1 のコンパクトな丸々デザイン。
-    頭と体が重なり合い、首が見えないプロポーションにする。
+    頭と体をほぼ同じ大きさにし、首が見えないくらい重ねる。
     x, y はひよこ全体の中心座標。
     """
     # === カラーパレット ===
-    head_color = (255, 229, 102, 255)   # #FFE566 頭（明るいパステルイエロー）
-    body_color = (255, 215,   0, 255)   # #FFD700 体
-    wing_color = (230, 185,   0, 255)   # 翼（体より少し濃い黄色）
-    beak_color = (255, 140,   0, 255)   # #FF8C00 くちばし・足
-    blush_color = (255, 183, 197, 200)  # #FFB7C5 ほっぺた（通常）
-    blush_deep  = (255, 130, 155, 220)  # ほっぺた（照れ顔は濃いめ）
-    eye_color   = ( 44,  44,  44, 255)  # #2C2C2C 目
+    head_color = (255, 220, 50, 255)    # 明るい黄色の頭
+    body_color = (255, 210, 30, 255)    # 少しだけ濃い黄色の体
+    wing_color = (240, 180, 20, 255)    # 羽はさらに濃い黄色
+    beak_color = (230, 140, 20, 255)    # くちばし・足はオレンジ
+    cheek_color = (230, 150, 30, 200)   # ほっぺたはオレンジ系
+    cheek_deep = (230, 150, 30, 230)    # 照れ顔だけ少し濃くする
+    eye_color = (30, 30, 30, 255)       # シンプルな黒目
     heart_color = (255, 107, 157, 255)  # #FF6B9D ハート目
-    white       = (255, 255, 255, 255)  # ハイライト
 
     # === パーツの基準座標 ===
-    body_cx, body_cy = x, y + int(round(15 * size_scale))   # 体の中心
-    body_r = 40 if size_scale >= 1.0 else 33                # 体の半径
-    head_cx, head_cy = x, y - int(round(28 * size_scale))   # 頭の中心（体と重なるよう配置）
-    head_r = 38 if size_scale >= 1.0 else 31                # 頭の半径
+    body_cx, body_cy = x, y + int(round(18 * size_scale))
+    body_rx = max(28, int(round(45 * size_scale)))
+    body_ry = max(27, int(round(43 * size_scale)))
+    head_cx = x
+    head_r = max(26, int(round(42 * size_scale)))
+    overlap = max(12, int(round(20 * size_scale)))
+    head_cy = body_cy - body_ry - head_r + overlap
 
-    # === 描画順: 羽 → 体 → 頭 → 足 → アホ毛 → 顔パーツ ===
+    # === 描画順: 羽 → 体 → 頭 → 足 → 顔パーツ ===
 
-    # --- 羽（体の両サイドに小さめ楕円・体の約1/3サイズ） ---
-    wing_rx = max(8, int(round(10 * size_scale)))   # 羽の半径（横）
-    wing_ry = max(10, int(round(12 * size_scale)))  # 羽の半径（縦）
-    wing_front_dx = int(round(6 * size_scale))
-    wing_back_dx = int(round(4 * size_scale))
-    wing_back_dy = int(round(3 * size_scale))
-    if facing == "right":
-        # 右向き: 左羽を少し前方に出し、右羽を少し後方に
-        draw.ellipse((body_cx - body_r - wing_rx + wing_front_dx, body_cy - wing_ry,
-                      body_cx - body_r + wing_rx + wing_front_dx, body_cy + wing_ry), fill=wing_color)
-        draw.ellipse((body_cx + body_r - wing_rx - wing_back_dx, body_cy - wing_ry + wing_back_dy,
-                      body_cx + body_r + wing_rx - wing_back_dx, body_cy + wing_ry + wing_back_dy), fill=wing_color)
-    else:
-        # 左向き: 左右反転
-        draw.ellipse((body_cx - body_r - wing_rx + wing_back_dx, body_cy - wing_ry + wing_back_dy,
-                      body_cx - body_r + wing_rx + wing_back_dx, body_cy + wing_ry + wing_back_dy), fill=wing_color)
-        draw.ellipse((body_cx + body_r - wing_rx - wing_front_dx, body_cy - wing_ry,
-                      body_cx + body_r + wing_rx - wing_front_dx, body_cy + wing_ry), fill=wing_color)
+    # --- 羽（体の左右にくっついた小さめの丸） ---
+    wing_r = max(14, int(round(18 * size_scale)))
+    wing_inset = max(5, int(round(8 * size_scale)))
+    wing_y = body_cy - max(0, int(round(2 * size_scale)))
+    draw.ellipse((body_cx - body_rx - wing_r + wing_inset, wing_y - wing_r,
+                  body_cx - body_rx + wing_r + wing_inset, wing_y + wing_r), fill=wing_color)
+    draw.ellipse((body_cx + body_rx - wing_r - wing_inset, wing_y - wing_r,
+                  body_cx + body_rx + wing_r - wing_inset, wing_y + wing_r), fill=wing_color)
 
-    # --- 体（黄色い丸・羽の上に重ねて翼が両サイドから覗く） ---
-    draw.ellipse((body_cx - body_r, body_cy - body_r,
-                  body_cx + body_r, body_cy + body_r), fill=body_color)
+    # --- 体（頭と同じくらいの大きさで、少しだけ縦長） ---
+    draw.ellipse((body_cx - body_rx, body_cy - body_ry,
+                  body_cx + body_rx, body_cy + body_ry), fill=body_color)
 
-    # --- 頭（明るめ黄色い丸・体と重なることで首を隠す） ---
+    # --- 頭（大きな真円） ---
     draw.ellipse((head_cx - head_r, head_cy - head_r,
                   head_cx + head_r, head_cy + head_r), fill=head_color)
 
-    # --- 足（短くてかわいいオレンジ色・指付き） ---
-    foot_top = body_cy + body_r - 5                    # 体の底部付近から
-    foot_len = max(11, int(round(14 * size_scale)))    # 足の長さ（短め）
-    foot_offset = max(12, int(round(14 * size_scale)))
-    toe_dx = max(5, int(round(6 * size_scale)))
-    toe_dy = max(4, int(round(4 * size_scale)))
+    # --- 足（極めて短く、体の下から少しだけ見せる） ---
+    foot_top = body_cy + body_ry - 2
+    foot_len = max(6, int(round(8 * size_scale)))
+    foot_offset = max(9, int(round(12 * size_scale)))
+    toe_dx = max(3, int(round(4 * size_scale)))
+    toe_y = max(1, int(round(2 * size_scale)))
+    foot_width = max(2, int(round(3 * size_scale)))
     for fx in (x - foot_offset, x + foot_offset):
-        draw.line((fx, foot_top, fx, foot_top + foot_len), fill=beak_color, width=4)
-        draw.line((fx, foot_top + foot_len, fx - toe_dx, foot_top + foot_len + toe_dy),
-                  fill=beak_color, width=3)
-        draw.line((fx, foot_top + foot_len, fx + toe_dx, foot_top + foot_len + toe_dy),
-                  fill=beak_color, width=3)
-
-    # --- アホ毛（頭頂部のぴょんと立った小さな突起） ---
-    ahoge_base = head_cy - head_r   # 頭の一番上
-    ahoge_dx = max(2, int(round(2 * size_scale)))
-    ahoge_w = max(7, int(round(8 * size_scale)))
-    ahoge_h = max(14, int(round(14 * size_scale)))
-    draw.ellipse((x + ahoge_dx, ahoge_base - ahoge_h, x + ahoge_dx + ahoge_w, ahoge_base + 4), fill=head_color)
+        draw.line((fx, foot_top, fx, foot_top + foot_len), fill=beak_color, width=foot_width)
+        draw.line((fx - toe_dx, foot_top + foot_len + toe_y, fx + toe_dx, foot_top + foot_len + toe_y),
+                  fill=beak_color, width=max(1, foot_width - 1))
 
     # === 顔パーツの座標 ===
-    eye_y = head_cy - max(8, int(round(10 * size_scale)))  # 目のY座標（頭中心より少し上）
-    left_ex = head_cx - max(9, int(round(11 * size_scale)))   # 左目のX座標
-    right_ex = head_cx + max(9, int(round(11 * size_scale)))  # 右目のX座標
+    beak_cx = head_cx
+    beak_cy = head_cy + max(3, int(round(5 * size_scale)))
+    eye_y = beak_cy - max(6, int(round(8 * size_scale)))
+    eye_dx = max(8, int(round(11 * size_scale)))
+    left_ex = beak_cx - eye_dx
+    right_ex = beak_cx + eye_dx
+    eye_r = max(4, int(round(5 * size_scale)))
 
     # === 目（表情によって変える） ===
     if expression == "smile":
-        # にっこり: 下向き弧（目を細めた笑顔）
-        draw.arc((left_ex  - 7, eye_y - 3, left_ex  + 7, eye_y + 7), 10, 170, fill=eye_color, width=3)
-        draw.arc((right_ex - 7, eye_y - 3, right_ex + 7, eye_y + 7), 10, 170, fill=eye_color, width=3)
+        # にっこり目もシンプルな線でまとめる
+        draw.arc((left_ex - 6, eye_y - 1, left_ex + 6, eye_y + 7), 15, 165, fill=eye_color, width=2)
+        draw.arc((right_ex - 6, eye_y - 1, right_ex + 6, eye_y + 7), 15, 165, fill=eye_color, width=2)
     elif expression == "sleepy":
-        # 眠そうな目: 半目（下弧 + 上まぶた線）
-        draw.arc((left_ex  - 7, eye_y - 5, left_ex  + 7, eye_y + 5), 185, 355, fill=eye_color, width=3)
-        draw.line((left_ex  - 7, eye_y, left_ex  + 7, eye_y), fill=eye_color, width=2)
-        draw.arc((right_ex - 7, eye_y - 5, right_ex + 7, eye_y + 5), 185, 355, fill=eye_color, width=3)
-        draw.line((right_ex - 7, eye_y, right_ex + 7, eye_y), fill=eye_color, width=2)
+        # 眠そうな目は短い横線だけにする
+        draw.line((left_ex - 5, eye_y, left_ex + 5, eye_y), fill=eye_color, width=2)
+        draw.line((right_ex - 5, eye_y, right_ex + 5, eye_y), fill=eye_color, width=2)
     elif expression == "surprised":
-        # びっくり目: 大きな丸目（ハイライト付き）
-        draw.ellipse((left_ex  - 8, eye_y - 8, left_ex  + 8, eye_y + 8), fill=eye_color)
-        draw.ellipse((left_ex  - 3, eye_y - 3, left_ex  + 3, eye_y + 3), fill=white)
-        draw.ellipse((right_ex - 8, eye_y - 8, right_ex + 8, eye_y + 8), fill=eye_color)
-        draw.ellipse((right_ex - 3, eye_y - 3, right_ex + 3, eye_y + 3), fill=white)
+        # びっくり目は少し大きめの黒丸
+        big_eye_r = eye_r + max(1, int(round(2 * size_scale)))
+        draw.ellipse((left_ex - big_eye_r, eye_y - big_eye_r, left_ex + big_eye_r, eye_y + big_eye_r), fill=eye_color)
+        draw.ellipse((right_ex - big_eye_r, eye_y - big_eye_r, right_ex + big_eye_r, eye_y + big_eye_r), fill=eye_color)
     elif expression == "heart":
-        # ハート目: 小さなハート形
-        _draw_small_heart(draw, left_ex,  eye_y, 8, heart_color)
-        _draw_small_heart(draw, right_ex, eye_y, 8, heart_color)
+        # ハート目だけは演出として残す
+        _draw_small_heart(draw, left_ex, eye_y, max(6, int(round(8 * size_scale))), heart_color)
+        _draw_small_heart(draw, right_ex, eye_y, max(6, int(round(8 * size_scale))), heart_color)
     elif expression == "wink":
-        # ウィンク: 左目は普通の丸目、右目は横弧（つぶった目）
-        draw.ellipse((left_ex - 5, eye_y - 5, left_ex + 5, eye_y + 5), fill=eye_color)
-        draw.ellipse((left_ex - 2, eye_y - 2, left_ex + 2, eye_y + 2), fill=white)
-        draw.arc((right_ex - 7, eye_y - 2, right_ex + 7, eye_y + 6), 195, 345, fill=eye_color, width=3)
+        # ウィンクは片目だけ点にする
+        draw.ellipse((left_ex - eye_r, eye_y - eye_r, left_ex + eye_r, eye_y + eye_r), fill=eye_color)
+        draw.arc((right_ex - 6, eye_y - 1, right_ex + 6, eye_y + 5), 200, 340, fill=eye_color, width=2)
     elif expression == "sparkle":
-        # キラキラ目: 星型
-        _draw_star(draw, left_ex,  eye_y, 8, eye_color)
-        _draw_star(draw, right_ex, eye_y, 8, eye_color)
+        # 見本優先で、キラキラ目も黒丸ベースに寄せる
+        draw.ellipse((left_ex - eye_r, eye_y - eye_r, left_ex + eye_r, eye_y + eye_r), fill=eye_color)
+        draw.ellipse((right_ex - eye_r, eye_y - eye_r, right_ex + eye_r, eye_y + eye_r), fill=eye_color)
     elif expression == "blush":
-        # 照れ顔: にっこり目（細め）
-        draw.arc((left_ex  - 6, eye_y - 2, left_ex  + 6, eye_y + 6), 10, 170, fill=eye_color, width=3)
-        draw.arc((right_ex - 6, eye_y - 2, right_ex + 6, eye_y + 6), 10, 170, fill=eye_color, width=3)
+        # 照れ顔は普通の黒目で、ほっぺを強めにする
+        draw.ellipse((left_ex - eye_r, eye_y - eye_r, left_ex + eye_r, eye_y + eye_r), fill=eye_color)
+        draw.ellipse((right_ex - eye_r, eye_y - eye_r, right_ex + eye_r, eye_y + eye_r), fill=eye_color)
     else:
-        # normal: 普通の丸い目（ハイライト付き）
-        draw.ellipse((left_ex  - 5, eye_y - 5, left_ex  + 5, eye_y + 5), fill=eye_color)
-        draw.ellipse((left_ex  - 2, eye_y - 2, left_ex  + 2, eye_y + 2), fill=white)
-        draw.ellipse((right_ex - 5, eye_y - 5, right_ex + 5, eye_y + 5), fill=eye_color)
-        draw.ellipse((right_ex - 2, eye_y - 2, right_ex + 2, eye_y + 2), fill=white)
+        # 基本は見本どおりの小さな黒丸
+        draw.ellipse((left_ex - eye_r, eye_y - eye_r, left_ex + eye_r, eye_y + eye_r), fill=eye_color)
+        draw.ellipse((right_ex - eye_r, eye_y - eye_r, right_ex + eye_r, eye_y + eye_r), fill=eye_color)
 
-    # --- くちばし（小さいオレンジの三角形） ---
-    beak_y = head_cy + max(4, int(round(5 * size_scale)))
-    draw.polygon([
-        (x - 4, beak_y - 2),
-        (x + 4, beak_y - 2),
-        (x,     beak_y + 4),
-    ], fill=beak_color)
+    # --- くちばし（横長のオレンジ楕円） ---
+    beak_rx = max(7, int(round(10 * size_scale)))
+    beak_ry = max(5, int(round(7 * size_scale)))
+    draw.ellipse((beak_cx - beak_rx, beak_cy - beak_ry,
+                  beak_cx + beak_rx, beak_cy + beak_ry), fill=beak_color)
 
-    # --- ほっぺた（目の下にピンクの楕円） ---
-    cheek_col = blush_deep if expression == "blush" else blush_color
-    cheek_y = eye_y + max(8, int(round(10 * size_scale)))
-    cheek_rx = max(8, int(round(10 * size_scale)))
-    cheek_ry = max(4, int(round(5 * size_scale)))
-    draw.ellipse((left_ex  - cheek_rx, cheek_y - cheek_ry, left_ex  + cheek_rx, cheek_y + cheek_ry), fill=cheek_col)
-    draw.ellipse((right_ex - cheek_rx, cheek_y - cheek_ry, right_ex + cheek_rx, cheek_y + cheek_ry), fill=cheek_col)
+    # --- ほっぺた（目の下外側にオレンジ色で置く） ---
+    cheek_fill = cheek_deep if expression == "blush" else cheek_color
+    cheek_y = eye_y + max(9, int(round(12 * size_scale)))
+    cheek_rx = max(9, int(round(13 * size_scale)))
+    cheek_ry = max(6, int(round(8 * size_scale)))
+    cheek_gap = max(4, int(round(5 * size_scale)))
+    draw.ellipse((left_ex - cheek_rx - cheek_gap, cheek_y - cheek_ry,
+                  left_ex + cheek_rx - cheek_gap, cheek_y + cheek_ry), fill=cheek_fill)
+    draw.ellipse((right_ex - cheek_rx + cheek_gap, cheek_y - cheek_ry,
+                  right_ex + cheek_rx + cheek_gap, cheek_y + cheek_ry), fill=cheek_fill)
 
 
 def draw_text_with_outline(draw: ImageDraw.ImageDraw, text: str) -> None:
@@ -341,7 +348,7 @@ def create_sticker(index: int, text: str, scene: list[Tuple[int, int, str, str]]
         draw.ellipse((ax - r, ay - r, ax + r, ay + r), fill=color)
 
     # ひよこを描く
-    size_scale = 0.8 if len(scene) == 2 else 1.0
+    size_scale = 0.75 if len(scene) == 2 else 1.0
     for x, y, expression, facing in scene:
         draw_chick(draw, x, y, expression, facing, size_scale=size_scale)
 
