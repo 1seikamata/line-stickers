@@ -57,3 +57,15 @@ python generate_stickers.py --animated-only --frames 12 --fps 10 --speed 1 --hea
 | `--loop` | 2 | ループ回数（1〜4） |
 
 LINEの仕様に合わせ、総再生時間（フレーム数 ÷ FPS × ループ回数）は4秒以内にしてください。
+
+## 画像の分割（split_stickers.py）
+4×4グリッド（16個）のスタンプが並んだ1枚の画像を、左上から右下へ行ごとに `01.png`〜`16.png` へ分割します。各画像はLINE公式サイズ（370×320px）で、元の向きは変えず、縦横比を保ったまま透過余白で調整します。
+
+- 元画像: リポジトリのルートに `source_grid.png` として置いてください（スクリーンショットなど。別のパスも引数で指定可能）
+- 出力先: `split_stickers/`（既存の `01.png`〜`08.png` と混同しないよう別フォルダ）
+
+```bash
+pip install -r requirements.txt
+python split_stickers.py                      # source_grid.png → split_stickers/01.png〜16.png
+python split_stickers.py my_grid.png -o out   # 元画像・出力先を指定
+```
