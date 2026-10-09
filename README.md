@@ -38,3 +38,22 @@ python generate_stickers.py
 - `stickers/sticker_14.png`
 - `stickers/sticker_15.png`
 - `stickers/sticker_16.png`
+
+## 動くスタンプ（APNG）
+`python generate_stickers.py` は静止画に加えて、LINEの動くスタンプ用APNGも `stickers/animated_sticker_01.png`〜`animated_sticker_16.png` として生成します（Pillowのみ使用、追加ライブラリ不要）。
+ひよこのゆらゆら動き、ハートの浮遊・拡大縮小、星の点滅・移動を各スタンプ12フレームで描画し、フレーム数・FPS・ループ回数などをPNGのメタデータ（`Animation`テキスト）にも記録します。
+
+```bash
+python generate_stickers.py --animated-only --frames 12 --fps 10 --speed 1 --hearts 4 --stars 4 --loop 2
+```
+
+| オプション | 既定値 | 説明 |
+|---|---|---|
+| `--static-only` / `--animated-only` | - | 静止画のみ / 動くスタンプのみ生成 |
+| `--frames` | 12 | フレーム数（5〜20） |
+| `--fps` | 10 | フレームレート |
+| `--speed` | 1.0 | アニメーション速度（1ループ内の動きの周期数。整数に丸められます） |
+| `--hearts` / `--stars` | 4 / 4 | ハート・星の数 |
+| `--loop` | 2 | ループ回数（1〜4） |
+
+LINEの仕様に合わせ、総再生時間（フレーム数 ÷ FPS × ループ回数）は4秒以内にしてください。
